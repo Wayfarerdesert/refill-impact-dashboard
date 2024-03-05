@@ -126,31 +126,39 @@ export default {
     },
     animateContainerCount(selector, endValue) {
       let startValue = 0;
-      let maxInterval = 50;
-      let minInterval = 10;
+      const duration = 3000; // Set duration to 3 sec
 
-      // Calculate the duration based on the endValue number
-      let duration;
-      if (endValue <= 1) {
-        duration = Math.floor(minInterval / endValue);
-      } else {
-        duration = Math.floor(maxInterval / 1);
-      }
+      // Calculate the increment based on the endValue and duration
+      const increment = endValue / duration;
 
-      // Ensure duration is within min and max Interval.
-      duration = Math.max(minInterval, Math.min(maxInterval, duration));
+      let currentValue = startValue;
+      let startTime;
 
-      let counter = setInterval(() => {
-        if (Number.isInteger(endValue)) {
-          startValue += 1; // Increment by 1 for integer values
-        } else {
-          startValue += 0.01; // Increment by a small value for float values
+      // Function to update the current value based on elapsed time and increment
+      const updateValue = () => {
+        const currentTime = Date.now();
+        const elapsedTime = currentTime - startTime;
+        // Calculate current value based on elapsed time
+        currentValue = increment * elapsedTime;
+
+        if (currentValue >= endValue) {
+          clearInterval(interval);
+          currentValue = endValue;
         }
-        this.$el.querySelector(selector).textContent = startValue.toFixed(2); // Update the text content
-        if (startValue >= endValue) {
-          clearInterval(counter);
+        const formattedValue = selector.includes("bottles")
+          ? currentValue.toFixed(0)
+          : currentValue.toFixed(2);
+        // Update the text content
+        this.$el.querySelector(selector).textContent = formattedValue;
+      };
+
+      const interval = setInterval(() => {
+        if (!startTime) {
+          // set start time to current time
+          startTime = Date.now();
         }
-      }, duration);
+        updateValue();
+      });
     },
     shareImpact() {
       // Ensure impact is calculated

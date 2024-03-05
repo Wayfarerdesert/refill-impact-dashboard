@@ -31,9 +31,11 @@ npm install
 
 4. Ensure Firebase is installed in your project using `npm install firebase`.
 
+5. Ensure canvas-confetti is installed, simply run the following command in your terminal: `npm install --save canvas-confetti`
+
 ### Compile and Hot-Reload for Development
 
-5. Run the development server with hot-reloading enabled using:
+6. Run the development server with hot-reloading enabled using:
 
 ```sh
 npm run dev

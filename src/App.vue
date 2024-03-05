@@ -55,9 +55,19 @@
             Comparte tus logros
           </button>
           <!-- Display the shareable link -->
-          <div v-if="shareableLink">
-            <input type="text" v-model="shareableLink" readonly />
-            <button @click="copyLink">Copiar</button>
+          <div class="shareableLink" v-if="shareableLink">
+            <!--v-if="shareableLink" -->
+            <input
+              class="input-link"
+              type="text"
+              v-model="shareableLink"
+              readonly
+            />
+            <button class="copyBtn" @click="copyLink">Copiar</button>
+            <!-- <font-awesome-icon
+              :icon="['far', 'copy']"
+              :class="['icon-class', 'custom-color', 'custom-size']"
+            /> -->
           </div>
         </div>
       </div>
@@ -70,6 +80,7 @@
 import firebaseApp from "./utils/firebase";
 import { onMounted } from "vue";
 import { generateUniqueId } from "./utils/generateUniqueId";
+import confetti from "canvas-confetti";
 
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
@@ -85,11 +96,6 @@ export default {
   name: "App",
   components: {
     FontAwesomeIcon,
-  },
-  setup() {
-    onMounted(() => {
-      console.log("Hola Mundo");
-    });
   },
   data() {
     return {
@@ -144,6 +150,12 @@ export default {
         if (currentValue >= endValue) {
           clearInterval(interval);
           currentValue = endValue;
+          // Trigger confetti effect when counting reaches the end value
+          confetti({
+            particleCount: 100,
+            angle: 90,
+            spread: 130,
+          });
         }
         const formattedValue = selector.includes("bottles")
           ? currentValue.toFixed(0)

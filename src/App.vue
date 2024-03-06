@@ -4,21 +4,34 @@
     <h2>{{ subtitle }}</h2>
 
     <div id="app">
-      <div class="headerWrapper">
-        <h2>{{ subtitleII }}</h2>
-        <input
-          class="input-refills"
-          v-model="refills"
-          type="number"
-          placeholder="Número de recargas"
+      <div class="loading" v-if="loading">
+        <font-awesome-icon
+          :icon="['fas', 'spinner']"
+          :class="['fa-spin', 'fa-3x']"
         />
-        <button class="homeBtn calcBtn" @click="calculateImpact">
-          Calcular Impacto
-        </button>
+        <p>Cargando...</p>
+      </div>
+      <div v-if="showingSavedImpact" class="headerWrapper saved-impact">
+        <h2>Refills</h2>
+        <h3>{{ refills }}</h3>
+      </div>
+      <div class="headerWrapper" v-else-if="!loading">
+        <h2>{{ subtitleII }}</h2>
+        <div class="input-group">
+          <input
+            class="input-refills"
+            v-model="refills"
+            type="number"
+            placeholder="Número de recargas"
+          />
+          <button class="homeBtn calcBtn" @click="calculateImpact">
+            Calcular Impacto
+          </button>
+        </div>
       </div>
 
       <!-- environmental impact calculation section -->
-      <div class="wrapper">
+      <div  class="wrapper">
         <div class="impact-box" v-if="impactCalculated">
           <h2 class="impact-box-title">{{ impactBoxTitle }}</h2>
           <div class="container-wrapper">
@@ -49,14 +62,15 @@
           </div>
           <!-- Share and copy links btn -->
           <button
+          
             class="homeBtn shareBtn"
             @click="shareImpact"
-            v-if="impactCalculated"
+            v-if="impactCalculated && !showingSavedImpact"
           >
             Comparte tus logros
           </button>
           <!-- Display the shareable link -->
-          <div class="shareableLink" v-if="shareableLink">
+          <div class="shareableLink" v-if="shareableLink && !showingSavedImpact">
             <!--v-if="shareableLink" -->
             <input
               class="input-link"
@@ -77,7 +91,7 @@
 </template>
 
 <script>
-import { getDatabase, ref, set } from "firebase/database";
+import { getDatabase, ref, set, get } from "firebase/database";
 import firebaseApp from "./utils/firebase";
 
 import { generateUniqueId } from "./utils/generateUniqueId";
@@ -90,9 +104,17 @@ import {
   faBottleWater,
   faRecycle,
   faWeightHanging,
+  faSpinner
 } from "@fortawesome/free-solid-svg-icons";
 
-library.add(faBottleWater, faRecycle, faWeightHanging, far);
+library.add(faBottleWater, faRecycle, faWeightHanging, far, faSpinner);
+
+const getShareIdFromURL = () => {
+  const url = window.location.href;
+  const urlParts = url.split("/");
+  const shareId = urlParts[urlParts.length - 1];
+  return shareId && shareId.length > 0 ? shareId : null;
+};
 
 export default {
   name: "App",
@@ -112,9 +134,29 @@ export default {
       plasticSaved: 0,
       carbonSaved: 0,
       shareableLink: null,
+      host: window.location.host,
+      shareId: null,
+      loading: true,
     };
   },
+  computed: {
+    showingSavedImpact() {
+      return this.shareId !== null && !this.loading;
+    },
+  },
   methods: {
+    formatTime(date) {
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const seconds = date.getSeconds().toString().padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+    },
+    formatDuration(milliseconds) {
+        const totalSeconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+        const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+        return `${minutes}:${seconds}`;
+    },
     calculateImpact() {
       const bottlesPerRefill = 2; // 33 ml bottles saved (2 bottles per refill)
       const plasticPerBottle = 0.012; // 0.012 kg per bottle
@@ -127,51 +169,66 @@ export default {
       this.impactCalculated = true;
       this.animateCount();
     },
-    animateCount() {
-      this.animateContainerCount(".num.bottles", this.bottlesSaved);
-      this.animateContainerCount(".num.plastic", this.plasticSaved);
-      this.animateContainerCount(".num.carbon", this.carbonSaved);
+    async animateCount() {
+      let startTime = Date.now();
+
+      console.log("Animating count...", startTime.toString());
+
+      await Promise.all([
+        this.animateContainerCount(".num.bottles", this.bottlesSaved),
+        this.animateContainerCount(".num.plastic", this.plasticSaved),
+        this.animateContainerCount(".num.carbon", this.carbonSaved),
+      ]);
+
+      let endTime = Date.now();
+      console.log("Animation completed at", endTime.toString());
+      console.log(`Animation took ${endTime - startTime} ms`);
     },
-    animateContainerCount(selector, endValue) {
-      let startValue = 0;
-      const duration = 3000; // Set duration to 3 sec
+    async animateContainerCount(selector, endValue) {
+      return new Promise((resolve, reject) => {
+        let startValue = 0;
+        const duration = 1000; // Set duration to 2 sec
 
-      // Calculate the increment based on the endValue and duration
-      const increment = endValue / duration;
+        // Calculate the increment based on the endValue and duration
+        const increment = endValue / duration;
 
-      let currentValue = startValue;
-      let startTime;
+        let currentValue = startValue;
+        let startTime;
 
-      // Function to update the current value based on elapsed time and increment
-      const updateValue = () => {
-        const currentTime = Date.now();
-        const elapsedTime = currentTime - startTime;
-        // Calculate current value based on elapsed time
-        currentValue = increment * elapsedTime;
+        // Function to update the current value based on elapsed time and increment
+        const updateValue = () => {
+          const currentTime = Date.now();
+          const elapsedTime = currentTime - startTime;
+          // Calculate current value based on elapsed time
+          currentValue = increment * elapsedTime;
 
-        if (currentValue >= endValue) {
-          clearInterval(interval);
-          currentValue = endValue;
-          // Trigger confetti effect when counting reaches the end value
-          confetti({
-            particleCount: 100,
-            angle: 90,
-            spread: 130,
-          });
-        }
-        const formattedValue = selector.includes("bottles")
-          ? currentValue.toFixed(0)
-          : currentValue.toFixed(2);
-        // Update the text content
-        this.$el.querySelector(selector).textContent = formattedValue;
-      };
+          if (elapsedTime >= duration) {
+            clearInterval(interval);
+            currentValue = endValue;
+            // Trigger confetti effect when counting reaches the end value
+            confetti({
+              particleCount: 100,
+              angle: 90,
+              spread: 130,
+            });
 
-      const interval = setInterval(() => {
-        if (!startTime) {
-          // set start time to current time
-          startTime = Date.now();
-        }
-        updateValue();
+            console.log("Animation completed");
+            resolve(true); // Resolve the promise when the animation ends
+          }
+          const formattedValue = selector.includes("bottles")
+            ? currentValue.toFixed(0)
+            : currentValue.toFixed(2);
+          // Update the text content
+          this.$el.querySelector(selector).textContent = formattedValue;
+        };
+
+        const interval = setInterval(() => {
+          if (!startTime) {
+            // set start time to current time
+            startTime = Date.now();
+          }
+          updateValue();
+        }, increment);
       });
     },
     shareImpact() {
@@ -182,9 +239,10 @@ export default {
       const db = getDatabase();
       const impactsRef = ref(db, `impacts/${uniqueId}`);
       set(impactsRef, {
-        bottlesSaved: this.bottlesSaved,
-        plasticSaved: this.plasticSaved,
-        carbonSaved: this.carbonSaved,
+        bottles: this.bottlesSaved,
+        plastic: this.plasticSaved,
+        carbon: this.carbonSaved,
+        refills: this.refills,
       })
         .then(() => {
           console.log("data stored successfully:");
@@ -194,7 +252,7 @@ export default {
         });
 
       // Generate the shareable link
-      this.shareableLink = `https://refill-impact-dashboard.web.app/share/${uniqueId}`;
+      this.shareableLink = `${this.host}/share/${uniqueId}`;
     },
     copyLink(button) {
       const shareableLink = this.shareableLink;
@@ -216,6 +274,39 @@ export default {
           console.error("Error copying link to clipboard:", error);
         });
     },
+    async getDataFromShareId() {
+      if(!this.shareId) {
+        this.loading = false;
+        console.log("No shareId available");
+        return;
+      }
+
+      const db = getDatabase();
+      const impactsRef = ref(db, `impacts/${this.shareId}`);
+      const snapshot = await get(impactsRef);
+
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        this.refills = data.refills;
+        this.calculateImpact();
+        this.loading = false;
+      } else {
+        console.log("No data available");
+        this.loading = false;
+      }
+
+    }
+  },
+  async mounted() {
+    // Set the title of the document
+    document.title = "Refill Calculator";
+    console.log("App mounted, host:", this.host);
+    // get the shareId from the URL
+    this.shareId = getShareIdFromURL();
+    console.log("Share ID:", this.shareId);
+    await this.getDataFromShareId();
+    console.log("showingSavedImpact:", this.showingSavedImpact);
+
   },
 };
 </script>

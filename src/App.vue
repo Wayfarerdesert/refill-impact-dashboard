@@ -25,7 +25,7 @@
             <div class="container">
               <font-awesome-icon
                 :icon="['fas', 'bottle-water']"
-                :class="['icon-class', 'custom-color', 'custom-size']"
+                :class="['fa-icon-style']"
               />
               <h3 class="bottles num">{{ bottlesSaved }}</h3>
               <h2>Botellas de Plástico</h2>
@@ -33,7 +33,7 @@
             <div class="container">
               <font-awesome-icon
                 :icon="['fas', 'recycle']"
-                :class="['icon-class', 'custom-color', 'custom-size']"
+                :class="['fa-icon-style']"
               />
               <h3 class="plastic num">{{ plasticSaved.toFixed(2) }}</h3>
               <h2>kg de Plástico</h2>
@@ -41,12 +41,13 @@
             <div class="container">
               <font-awesome-icon
                 :icon="['fas', 'weight-hanging']"
-                :class="['icon-class', 'custom-color', 'custom-size']"
+                :class="['fa-icon-style']"
               />
               <h3 class="carbon num">{{ carbonSaved.toFixed(2) }}</h3>
               <h2>kg de Dióxido de Carbono (CO2)</h2>
             </div>
           </div>
+          <!-- Share and copy links btn -->
           <button
             class="homeBtn shareBtn"
             @click="shareImpact"
@@ -63,11 +64,10 @@
               v-model="shareableLink"
               readonly
             />
-            <button class="copyBtn" @click="copyLink">Copiar</button>
-            <!-- <font-awesome-icon
-              :icon="['far', 'copy']"
-              :class="['icon-class', 'custom-color', 'custom-size']"
-            /> -->
+            <button class="copyBtn" @click="copyLink">
+              Copiar&nbsp;
+              <font-awesome-icon :icon="['far', 'copy']" :class="['fa-copy']" />
+            </button>
           </div>
         </div>
       </div>
@@ -77,12 +77,14 @@
 </template>
 
 <script>
+import { getDatabase, ref, set } from "firebase/database";
 import firebaseApp from "./utils/firebase";
-import { onMounted } from "vue";
+
 import { generateUniqueId } from "./utils/generateUniqueId";
 import confetti from "canvas-confetti";
 
 import { library } from "@fortawesome/fontawesome-svg-core";
+import { far } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import {
   faBottleWater,
@@ -90,7 +92,7 @@ import {
   faWeightHanging,
 } from "@fortawesome/free-solid-svg-icons";
 
-library.add(faBottleWater, faRecycle, faWeightHanging);
+library.add(faBottleWater, faRecycle, faWeightHanging, far);
 
 export default {
   name: "App",
@@ -173,43 +175,28 @@ export default {
       });
     },
     shareImpact() {
-      // Ensure impact is calculated
-      if (!this.impactCalculated) {
-        return;
-      }
-
       // Generate a unique identifier for the shareable link
-      const shareId = generateUniqueId();
+      const uniqueId = generateUniqueId();
 
-      // Construct the shareable link
-      const shareableLink = `https://refill-impact-dashboard.web.app/${shareId}`;
-
-      // Check if firebaseApp is properly initialized
-      if (!firebaseApp || !firebaseApp.database) {
-        console.error("Firebase is not properly initialized.");
-        return;
-      }
-
-      // Save the calculated impact to Firebase Realtime Database
-      firebaseApp
-        .database()
-        .ref(`shareable-links/${shareId}`)
-        .set({
-          impact: {
-            bottlesSaved: this.bottlesSaved,
-            plasticSaved: this.plasticSaved,
-            carbonSaved: this.carbonSaved,
-          },
-        })
+      // Store the calculated impact and the unique identifier in the database
+      const db = getDatabase();
+      const impactsRef = ref(db, `impacts/${uniqueId}`);
+      set(impactsRef, {
+        bottlesSaved: this.bottlesSaved,
+        plasticSaved: this.plasticSaved,
+        carbonSaved: this.carbonSaved,
+      })
         .then(() => {
-          // Link saved successfully
-          this.shareableLink = shareableLink;
+          console.log("data stored successfully:");
         })
         .catch((error) => {
-          console.error("Error generating shareable link:", error);
+          console.error("Error storing data:", error);
         });
+
+      // Generate the shareable link
+      this.shareableLink = `https://refill-impact-dashboard.web.app/share/${uniqueId}`;
     },
-    copyLink() {
+    copyLink(button) {
       const shareableLink = this.shareableLink;
 
       // Check if the Clipboard API is supported
@@ -223,6 +210,7 @@ export default {
         .writeText(shareableLink)
         .then(() => {
           console.log("Link copied to clipboard successfully!");
+          button.textContent = "Copiado";
         })
         .catch((error) => {
           console.error("Error copying link to clipboard:", error);

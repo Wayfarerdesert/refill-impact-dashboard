@@ -23,6 +23,7 @@
             v-model="refills"
             type="number"
             placeholder="Número de recargas"
+            @keyup.enter="calculateImpact"
           />
           <button class="homeBtn calcBtn" @click="calculateImpact">
             Calcular Impacto
@@ -31,7 +32,7 @@
       </div>
 
       <!-- environmental impact calculation section -->
-      <div  class="wrapper">
+      <div class="wrapper">
         <div class="impact-box" v-if="impactCalculated">
           <h2 class="impact-box-title">{{ impactBoxTitle }}</h2>
           <div class="container-wrapper">
@@ -62,7 +63,6 @@
           </div>
           <!-- Share and copy links btn -->
           <button
-          
             class="homeBtn shareBtn"
             @click="shareImpact"
             v-if="impactCalculated && !showingSavedImpact"
@@ -70,8 +70,10 @@
             Comparte tus logros
           </button>
           <!-- Display the shareable link -->
-          <div class="shareableLink" v-if="shareableLink && !showingSavedImpact">
-            <!--v-if="shareableLink" -->
+          <div
+            class="shareableLink"
+            v-if="shareableLink && !showingSavedImpact"
+          >
             <input
               class="input-link"
               type="text"
@@ -104,7 +106,7 @@ import {
   faBottleWater,
   faRecycle,
   faWeightHanging,
-  faSpinner
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 
 library.add(faBottleWater, faRecycle, faWeightHanging, far, faSpinner);
@@ -145,18 +147,7 @@ export default {
     },
   },
   methods: {
-    formatTime(date) {
-        const hours = date.getHours().toString().padStart(2, '0');
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        const seconds = date.getSeconds().toString().padStart(2, '0');
-        return `${hours}:${minutes}:${seconds}`;
-    },
-    formatDuration(milliseconds) {
-        const totalSeconds = Math.floor(milliseconds / 1000);
-        const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-        const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-        return `${minutes}:${seconds}`;
-    },
+    // Card num impact calculation and animate function start
     calculateImpact() {
       const bottlesPerRefill = 2; // 33 ml bottles saved (2 bottles per refill)
       const plasticPerBottle = 0.012; // 0.012 kg per bottle
@@ -186,6 +177,11 @@ export default {
     },
     async animateContainerCount(selector, endValue) {
       return new Promise((resolve, reject) => {
+        if (typeof selector !== "string" || isNaN(endValue)) {
+          // Reject if input parameters are invalid
+          reject(new Error("Invalid input parameters"));
+          return;
+        }
         let startValue = 0;
         const duration = 1000; // Set duration to 2 sec
 
@@ -230,7 +226,8 @@ export default {
           updateValue();
         }, increment);
       });
-    },
+    }, // Card num impact calculation and animate function ends
+    // Share Impact functions start
     shareImpact() {
       // Generate a unique identifier for the shareable link
       const uniqueId = generateUniqueId();
@@ -275,7 +272,7 @@ export default {
         });
     },
     async getDataFromShareId() {
-      if(!this.shareId) {
+      if (!this.shareId) {
         this.loading = false;
         console.log("No shareId available");
         return;
@@ -294,19 +291,17 @@ export default {
         console.log("No data available");
         this.loading = false;
       }
-
-    }
+    }, // Share Impact functions ends
   },
   async mounted() {
     // Set the title of the document
-    document.title = "Refill Calculator";
+    // document.title = "Refill Calculator";
     console.log("App mounted, host:", this.host);
     // get the shareId from the URL
     this.shareId = getShareIdFromURL();
     console.log("Share ID:", this.shareId);
     await this.getDataFromShareId();
     console.log("showingSavedImpact:", this.showingSavedImpact);
-
   },
 };
 </script>
